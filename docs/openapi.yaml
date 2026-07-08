@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: img2color API
+  version: 1.0.0
+paths:
+  /api:
+    get:
+      summary: Extract dominant colors from an image URL
+      parameters:
+        - in: query
+          name: img
+          required: true
+          schema: { type: string, format: uri }
+        - in: query
+          name: format
+          schema: { type: string, enum: [hex, rgb, hsl, cmyk], default: hex }
+        - in: query
+          name: colors
+          schema: { type: integer, minimum: 1, maximum: 10, default: 1 }
+        - in: query
+          name: maxWidth
+          schema: { type: integer, minimum: 32, maximum: 4096, default: 400 }
+        - in: query
+          name: skipBackground
+          schema: { type: boolean, default: false }
+        - in: query
+          name: algorithm
+          schema: { type: string, enum: [mediancut, kmeans], default: mediancut }
+      responses:
+        "200":
+          description: Successful color extraction
+        "400": { description: Invalid request }
+        "403": { description: Referer rejected or rate limited }
+        "404": { description: Image not found }
+        "413": { description: Image too large }
+        "415": { description: Unsupported image format }
+        "504": { description: Timeout }
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200": { description: Service status }
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        "200": { description: Metrics text }

@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "functions": {
+    "api/img2color.go": {
+      "runtime": "go1.x"
+    }
+  },
+  "routes": [
+    { "src": "/api", "dest": "/api/img2color.go" },
+    { "src": "/health", "dest": "/api/img2color.go" },
+    { "src": "/metrics", "dest": "/api/img2color.go" },
+    { "src": "/", "dest": "/api/img2color.go" }
+  ]
+}
