@@ -257,7 +257,10 @@ func (s *Service) handleAPI(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		pixels := Pixels(img.Image, req.skipBackground)
 		extractor := chooseExtractor(req.algorithm)
-		swatches, err := extractor.Extract(pixels, req.colors)
+		swatches, err := extractor.Extract(pixels, extractionLimit(req.colors))
+		if err == nil {
+			swatches = preferNonPureSwatches(swatches, req.colors)
+		}
 		resultCh <- extractResult{swatches: swatches, err: err}
 	}()
 
@@ -367,6 +370,40 @@ func chooseExtractor(algorithm string) Extractor {
 		return KMeans{}
 	}
 	return MedianCut{}
+}
+
+func extractionLimit(colors int) int {
+	if colors < 1 {
+		return 1
+	}
+	return colors + 2
+}
+
+func preferNonPureSwatches(swatches []Swatch, limit int) []Swatch {
+	if limit <= 0 {
+		limit = 1
+	}
+	preferred := make([]Swatch, 0, min(limit, len(swatches)))
+	for _, sw := range swatches {
+		if isPureBlackOrWhite(sw.Color) {
+			continue
+		}
+		preferred = append(preferred, sw)
+		if len(preferred) == limit {
+			return preferred
+		}
+	}
+	if len(preferred) > 0 {
+		return preferred
+	}
+	if len(swatches) > limit {
+		return swatches[:limit]
+	}
+	return swatches
+}
+
+func isPureBlackOrWhite(c RGB) bool {
+	return (c.R == 0 && c.G == 0 && c.B == 0) || (c.R == 255 && c.G == 255 && c.B == 255)
 }
 
 func buildResponse(swatches []Swatch, format string, width, height int) (ColorData, error) {
@@ -682,7 +719,7 @@ func (m *MongoStore) Close(ctx context.Context) error {
 
 func CacheKey(rawURL, format string, colors, maxWidth int, skipBackground, kmeans bool) string {
 	sum := md5.Sum([]byte(rawURL))
-	return hex.EncodeToString(sum[:]) + ":" + format + ":" + itoa(colors) + ":" + itoa(maxWidth) + ":" + boolStr(skipBackground) + ":" + boolStr(kmeans)
+	return hex.EncodeToString(sum[:]) + ":" + format + ":" + itoa(colors) + ":" + itoa(maxWidth) + ":" + boolStr(skipBackground) + ":" + boolStr(kmeans) + ":v2"
 }
 
 func itoa(v int) string {

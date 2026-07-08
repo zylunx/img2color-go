@@ -2,3 +2,4 @@ skills/
 .vercel/
 coverage.out
 *.test
+.env
