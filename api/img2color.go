@@ -27,6 +27,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	_ "github.com/gen2brain/avif"
+	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/webp"
 )
@@ -39,7 +44,8 @@ var (
 // Handler is the Vercel Serverless entry point.
 func Handler(w http.ResponseWriter, r *http.Request) {
 	handlerOnce.Do(func() {
-		handler = NewService(Load(), NewMemoryStore()).Router()
+		cfg := Load()
+		handler = NewService(cfg, buildCache(cfg)).Router()
 	})
 	handler.ServeHTTP(w, r)
 }
@@ -49,6 +55,13 @@ type Config struct {
 	MaxImageSizeBytes int64
 	MaxImagePixels    int
 	DownSampleSize    int
+	RedisAddress      string
+	RedisPassword     string
+	RedisDB           int
+	UseRedisCache     bool
+	MongoURI          string
+	MongoDB           string
+	UseMongoDB        bool
 	CacheTTL          time.Duration
 	RequestTimeout    time.Duration
 	ExtractTimeout    time.Duration
@@ -62,6 +75,13 @@ func Load() Config {
 		MaxImageSizeBytes: int64(envInt("MAX_IMAGE_SIZE_MB", 10)) * 1024 * 1024,
 		MaxImagePixels:    envInt("MAX_IMAGE_PIXELS", 16777216),
 		DownSampleSize:    envInt("DOWN_SAMPLE_SIZE", 400),
+		RedisAddress:      os.Getenv("REDIS_ADDRESS"),
+		RedisPassword:     os.Getenv("REDIS_PASSWORD"),
+		RedisDB:           envInt("REDIS_DB", 0),
+		UseRedisCache:     envBool("USE_REDIS_CACHE", false),
+		MongoURI:          os.Getenv("MONGO_URI"),
+		MongoDB:           envString("MONGO_DB", "img2color"),
+		UseMongoDB:        envBool("USE_MONGODB", false),
 		CacheTTL:          time.Duration(envInt("CACHE_TTL_HOURS", 168)) * time.Hour,
 		RequestTimeout:    time.Duration(envInt("REQUEST_TIMEOUT_SEC", 10)) * time.Second,
 		ExtractTimeout:    time.Duration(envInt("EXTRACT_TIMEOUT_SEC", 5)) * time.Second,
@@ -83,6 +103,18 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	return v
+}
+
+func envBool(key string, fallback bool) bool {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return fallback
+	}
+	return b
 }
 
 func splitCSV(v string) []string {
@@ -124,7 +156,7 @@ type ColorData struct {
 
 func NewService(cfg Config, store Store) *Service {
 	if store == nil {
-		store = NoopStore{}
+		store = NewMemoryStore()
 	}
 	return &Service{
 		cfg:     cfg,
@@ -132,6 +164,29 @@ func NewService(cfg Config, store Store) *Service {
 		limiter: NewRateLimiter(cfg.RateLimitPerMin),
 		sem:     make(chan struct{}, cfg.MaxConcurrent),
 	}
+}
+
+func buildCache(cfg Config) Store {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if cfg.UseRedisCache && cfg.RedisAddress != "" {
+		store := NewRedisStore(cfg.RedisAddress, cfg.RedisPassword, cfg.RedisDB)
+		if err := store.client.Ping(ctx).Err(); err != nil {
+			log.Printf("redis cache disabled: %v", err)
+			_ = store.Close(ctx)
+		} else {
+			return store
+		}
+	}
+	if cfg.UseMongoDB && cfg.MongoURI != "" {
+		store, err := NewMongoStore(ctx, cfg.MongoURI, cfg.MongoDB)
+		if err != nil {
+			log.Printf("mongodb cache disabled: %v", err)
+		} else {
+			return store
+		}
+	}
+	return NewMemoryStore()
 }
 
 func (s *Service) Router() http.Handler {
@@ -551,6 +606,80 @@ func (m *MemoryStore) Set(_ context.Context, key string, value interface{}, ttl 
 
 func (m *MemoryStore) Close(context.Context) error { return nil }
 
+type RedisStore struct {
+	client *redis.Client
+}
+
+func NewRedisStore(addr, password string, db int) *RedisStore {
+	return &RedisStore{client: redis.NewClient(&redis.Options{Addr: addr, Password: password, DB: db})}
+}
+
+func (r *RedisStore) Get(ctx context.Context, key string, dst interface{}) error {
+	val, err := r.client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return ErrMiss
+	}
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(val), dst)
+}
+
+func (r *RedisStore) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(ctx, key, b, ttl).Err()
+}
+
+func (r *RedisStore) Close(context.Context) error {
+	return r.client.Close()
+}
+
+type MongoStore struct {
+	client     *mongo.Client
+	collection *mongo.Collection
+}
+
+type mongoDoc struct {
+	ID       string      `bson:"_id"`
+	ExpireAt time.Time   `bson:"expireAt"`
+	Value    interface{} `bson:"value"`
+}
+
+func NewMongoStore(ctx context.Context, uri, db string) (*MongoStore, error) {
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, err
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(ctx)
+		return nil, err
+	}
+	return &MongoStore{client: client, collection: client.Database(db).Collection("image_color_cache")}, nil
+}
+
+func (m *MongoStore) Get(ctx context.Context, key string, dst interface{}) error {
+	var doc mongoDoc
+	if err := m.collection.FindOne(ctx, bson.M{"_id": key, "expireAt": bson.M{"$gt": time.Now()}}).Decode(&doc); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return ErrMiss
+		}
+		return err
+	}
+	return copyJSON(dst, doc.Value)
+}
+
+func (m *MongoStore) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	_, err := m.collection.UpdateOne(ctx, bson.M{"_id": key}, bson.M{"$set": bson.M{"value": value, "expireAt": time.Now().Add(ttl)}}, options.Update().SetUpsert(true))
+	return err
+}
+
+func (m *MongoStore) Close(ctx context.Context) error {
+	return m.client.Disconnect(ctx)
+}
+
 func CacheKey(rawURL, format string, colors, maxWidth int, skipBackground, kmeans bool) string {
 	sum := md5.Sum([]byte(rawURL))
 	return hex.EncodeToString(sum[:]) + ":" + format + ":" + itoa(colors) + ":" + itoa(maxWidth) + ":" + boolStr(skipBackground) + ":" + boolStr(kmeans)
@@ -650,9 +779,6 @@ func FetchDecodeImage(ctx context.Context, rawURL string, opt ImageOptions) (Ima
 	if int64(len(data)) > opt.MaxBytes {
 		return ImageResult{}, ErrImageTooLarge
 	}
-	if isAVIF(data) {
-		return ImageResult{}, ErrUnsupportedImageType
-	}
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return ImageResult{}, ErrUnsupportedImageType
@@ -715,13 +841,6 @@ func ResizeNearest(src image.Image, maxSide int) image.Image {
 		}
 	}
 	return dst
-}
-
-func isAVIF(data []byte) bool {
-	if len(data) < 12 {
-		return false
-	}
-	return string(data[4:8]) == "ftyp" && strings.Contains(string(data[8:min(len(data), 32)]), "avif")
 }
 
 type RGB struct {
