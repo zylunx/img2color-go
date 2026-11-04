@@ -187,6 +187,10 @@
   /* ---- api ---- */
   .api-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:stretch}
   .api-grid>*{min-width:0}
+  /* 左列同样撑满行高：最后一张端点卡片吸收剩余高度，底边与右列卡片严格齐平 */
+  .api-endpoints{display:flex;flex-direction:column;min-height:0}
+  .api-endpoints .endpoint:last-child{flex:1;display:flex;flex-direction:column}
+  .api-endpoints .endpoint:last-child pre{flex:1;min-height:0}
   .endpoint{--ep:var(--develop);--ep-bg:#ebf5ff;position:relative;min-width:0;overflow:hidden;background:var(--white);border-radius:8px;box-shadow:var(--card);padding:20px 20px 20px 24px;margin-bottom:16px}
   .endpoint::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ep)}
   .endpoint.ep-api{--ep:var(--develop);--ep-bg:#ebf5ff}
@@ -213,14 +217,19 @@
   .api-side{display:flex;flex-direction:column;gap:16px;min-width:0}
   .health-box{background:var(--white);border-radius:8px;box-shadow:var(--card);padding:24px;flex:none}
   .health-box h3{font-size:20px;font-weight:600;letter-spacing:-1.28px;margin-bottom:6px}
-  .health-box p{font-size:14px;color:var(--gray-600);margin-bottom:16px}
-  .status-line{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:14px;margin-top:14px}
-  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--gray-400)}
+  .health-desc{font-size:14px;color:var(--gray-600);margin-bottom:16px}
+  /* 检查成功后用统计条「替换」描述文案，按钮与状态行合并一行，展开几乎不增加卡片高度 */
+  .health-stats{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+  .health-box.checked .health-desc{display:none}
+  .health-box.checked .health-stats{display:grid}
+  .health-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .status-line{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:13px;min-width:0}
+  .status-line span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--gray-400);flex:none}
   .status-dot.up{background:#0a9d54}
-  .health-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
-  .stat{box-shadow:var(--ring);border-radius:8px;padding:12px}
-  .stat .k{font-size:11px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em}
-  .stat .v{font-family:var(--mono);font-size:18px;font-weight:500;margin-top:4px}
+  .stat{min-width:0;box-shadow:var(--ring);border-radius:8px;padding:8px 10px}
+  .stat .k{font-size:10px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .v{font-family:var(--mono);font-size:16px;font-weight:500;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .resp-box{--ep:#c0268f;flex:1;min-width:0;background:var(--white);border-radius:8px;box-shadow:var(--card);padding:24px;display:flex;flex-direction:column}
   .rb-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
   .rb-head h3{font-size:20px;font-weight:600;letter-spacing:-1.28px}
@@ -252,6 +261,9 @@
     .preview-wrap{min-height:260px}
     .grid-3,.flow{grid-template-columns:minmax(0,1fr)}
     .api-grid{grid-template-columns:minmax(0,1fr)}
+    .api-endpoints{display:block}
+    .api-endpoints .endpoint:last-child{display:block}
+    .api-endpoints .endpoint:last-child pre{flex:none}
     .resp-box{flex:none}
   }
   @media(max-width:600px){
@@ -263,6 +275,7 @@
     .palette{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
     .endpoint{padding:16px 16px 16px 19px}
     .health-box,.resp-box{padding:20px}
+    .health-stats{grid-template-columns:1fr 1fr}
     .rb-legend code{white-space:normal;overflow-wrap:anywhere}
     .ep-head{gap:8px}
     pre{font-size:12px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -479,7 +492,7 @@
       <p>所有响应均为统一 JSON 结构：<span class="mono">{ code, message, data }</span>。</p>
     </div>
     <div class="api-grid">
-      <div>
+      <div class="api-endpoints">
         <div class="endpoint ep-api">
           <div class="ep-head">
             <span class="ep-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
@@ -514,23 +527,29 @@
             <span class="ep-label">监控指标</span>
           </div>
           <p class="desc">Prometheus 文本格式指标，直接对接监控。</p>
-          <pre><span class="kw">GET</span> /metrics
+          <pre><span class="kw">GET</span> /metrics <span class="cm">→ text/plain</span>
 <span class="cm"># TYPE img2color_requests_total counter</span>
-img2color_requests_total <span class="num">128</span></pre>
+img2color_requests_total <span class="num">128</span>
+<span class="cm"># TYPE img2color_cache_hits_total counter</span>
+img2color_cache_hits_total <span class="num">54</span>
+<span class="cm"># TYPE img2color_errors_total counter</span>
+img2color_errors_total <span class="num">0</span></pre>
         </div>
       </div>
 
       <div class="api-side">
-        <div class="health-box">
+        <div class="health-box" id="healthBox">
           <h3>服务状态</h3>
-          <p>点击检查当前部署实例的运行情况。</p>
-          <button class="btn btn-dark" id="checkHealth">检查 /health</button>
-          <div class="status-line"><span class="status-dot" id="healthDot"></span><span id="healthText">未检查</span></div>
-          <div class="health-stats" id="healthStats" style="display:none">
+          <p class="health-desc">点击检查当前部署实例的运行情况。</p>
+          <div class="health-stats" id="healthStats">
             <div class="stat"><div class="k">Requests</div><div class="v" id="stReq">—</div></div>
             <div class="stat"><div class="k">Cache Hit</div><div class="v" id="stHit">—</div></div>
             <div class="stat"><div class="k">Errors</div><div class="v" id="stErr">—</div></div>
             <div class="stat"><div class="k">Rate / min</div><div class="v" id="stRate">—</div></div>
+          </div>
+          <div class="health-actions">
+            <button class="btn btn-dark" id="checkHealth">检查 /health</button>
+            <div class="status-line"><span class="status-dot" id="healthDot"></span><span id="healthText">未检查</span></div>
           </div>
           <div class="state-msg err" id="healthErr"></div>
         </div>
@@ -757,14 +776,14 @@ img2color_requests_total <span class="num">128</span></pre>
   var healthBtn = document.getElementById("checkHealth");
   var healthDot = document.getElementById("healthDot");
   var healthText = document.getElementById("healthText");
-  var healthStats = document.getElementById("healthStats");
+  var healthBox = document.getElementById("healthBox");
   var healthErr = document.getElementById("healthErr");
   healthBtn.addEventListener("click", function(){
     healthErr.style.display="none";
     fetch("/health").then(function(r){return r.json();}).then(function(d){
       healthDot.className = "status-dot up";
       healthText.textContent = (d.status||"up") + " · " + (d.message||"");
-      healthStats.style.display = "grid";
+      healthBox.classList.add("checked");
       document.getElementById("stReq").textContent = d.requests!=null?d.requests:"—";
       document.getElementById("stHit").textContent = d.cacheHitRate!=null?(d.cacheHitRate*100).toFixed(1)+"%":"—";
       document.getElementById("stErr").textContent = d.recentErrors!=null?d.recentErrors:"—";
@@ -772,6 +791,7 @@ img2color_requests_total <span class="num">128</span></pre>
     }).catch(function(err){
       healthDot.className = "status-dot";
       healthText.textContent = "检查失败";
+      healthBox.classList.remove("checked");
       healthErr.textContent = "无法连接 /health：" + err.message;
       healthErr.style.display = "block";
     });
