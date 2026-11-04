@@ -1,5 +1,7 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "framework": null,
   "builds": [
     { "src": "api/**/*.go", "use": "@vercel/go" },
     { "src": "public/**/*", "use": "@vercel/static" }
@@ -8,5 +10,8 @@
     { "src": "/api", "dest": "/api/img2color.go" },
     { "src": "/health", "dest": "/api/img2color.go" },
     { "src": "/metrics", "dest": "/api/img2color.go" }
+  ],
+  "rewrites": [
+    { "source": "/", "destination": "/public/index.html" }
   ]
 }
