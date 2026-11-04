@@ -3,3 +3,4 @@ skills/
 coverage.out
 *.test
 .env
+.workbuddy/

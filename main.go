@@ -22,7 +22,17 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", api.Handler)
+
+	// API endpoints are handled by the same serverless handler Vercel uses.
+	mux.HandleFunc("/api", api.Handler)
+	mux.HandleFunc("/health", api.Handler)
+	mux.HandleFunc("/metrics", api.Handler)
+
+	// Serve the static landing page (./public) for every other route.
+	// Vercel ignores this file in production; there the static build +
+	// vercel.json routes take over. Locally this lets `go run main.go`
+	// preview the page at http://localhost:8080.
+	mux.Handle("/", http.FileServer(http.Dir("public")))
 
 	addr := ":" + port
 	log.Printf("img2color listening on http://localhost:%s", port)
