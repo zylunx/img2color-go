@@ -55,6 +55,12 @@ npm i -g vercel
 vercel deploy
 ```
 
+> **页面提示 `referer is not allowed`？** 默认 `ALLOWED_REFERERS=*` 会全放行。若在 Vercel 项目
+> **Settings → Environment Variables** 中把它设成了具体域名，浏览器同源请求携带的 `Referer`
+> 不在名单内就会返回 `403`。把值改成 `*`，或填入部署域名（支持 `*.vercel.app`、
+> `*.example.com`，多个用逗号分隔），保存后需 **Redeploy** 才会生效。同源请求始终自动放行，
+> 白名单只用于拦截第三方盗用。
+
 部署完成后即可调用（`img` 参数需 URL 编码）：
 
 ```bash
@@ -200,7 +206,7 @@ curl "https://your-domain.vercel.app/api?img=https%3A%2F%2Fimg.example.com%2Fa.a
 
 ## 安全与限流
 
-- **Referer 白名单**：请求头带 `Referer` 时校验域名；支持 `*`（全放行）与 `*.domain.com` 通配。无 `Referer` 的请求默认放行，方便服务端调用。
+- **Referer 白名单**：请求头带 `Referer` 时校验域名；支持 `*`（全放行）与 `*.domain.com` 通配。无 `Referer` 的请求默认放行，方便服务端调用；**同源请求（页面调用自身 `/api`、`/health`、`/metrics`）始终放行**，白名单只用于拦截第三方盗用。
 - **单 IP 限流**：固定 1 分钟窗口，基于 `X-Forwarded-For` / `X-Real-IP` / `RemoteAddr` 识别客户端，超限返回 `403`。
 - **并发限制**：信号量控制同时处理的请求数，超出返回 `503`。
 - **下载防护**：体积、像素双重上限，配合下载与提取超时，避免被超大图或慢响应拖垮。

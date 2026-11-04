@@ -462,13 +462,43 @@ func RefererGuard(allowed []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ref := r.Header.Get("Referer")
-			if ref == "" || refererAllowed(ref, allowed) {
+			// Same-origin calls (the bundled landing page hitting /api, /health,
+			// /metrics) are always trusted. The allowlist exists to stop
+			// third-party hotlinking, not to block our own frontend when the
+			// deployment hostname changes or the allowlist is misconfigured.
+			if ref == "" || refererAllowed(ref, allowed) || sameOriginReferer(ref, r) {
 				next.ServeHTTP(w, r)
 				return
 			}
 			Error(w, http.StatusForbidden, "referer is not allowed")
 		})
 	}
+}
+
+// sameOriginReferer reports whether ref points at the host serving this
+// request. Vercel (and other proxies) may expose the public hostname through
+// X-Forwarded-Host instead of r.Host, so both are considered.
+func sameOriginReferer(ref string, r *http.Request) bool {
+	u, err := url.Parse(ref)
+	if err != nil || u.Hostname() == "" {
+		return false
+	}
+	refHost := strings.ToLower(u.Hostname())
+
+	hosts := []string{r.Host}
+	if fwd := r.Header.Get("X-Forwarded-Host"); fwd != "" {
+		hosts = append(hosts, strings.TrimSpace(strings.Split(fwd, ",")[0]))
+	}
+	for _, h := range hosts {
+		h = strings.ToLower(strings.TrimSpace(h))
+		if host, _, err := net.SplitHostPort(h); err == nil {
+			h = host
+		}
+		if h != "" && h == refHost {
+			return true
+		}
+	}
+	return false
 }
 
 func refererAllowed(ref string, allowed []string) bool {
