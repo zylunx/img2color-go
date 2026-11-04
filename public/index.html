@@ -98,8 +98,10 @@
   /* ---- demo ---- */
   .demo-card{
     background:var(--white);border-radius:12px;box-shadow:var(--card);
-    padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:24px;
+    padding:24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;
+    align-items:stretch;
   }
+  .demo-card>*{min-width:0}
   .field{margin-bottom:18px}
   .field label:not(.switch){display:block;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-500);margin-bottom:8px}
   .input-url{
@@ -137,24 +139,27 @@
   .stepper button:hover{background:var(--gray-50)}
   .stepper input{width:48px;height:32px;border:none;text-align:center;font-family:var(--mono);font-size:14px;box-shadow:none;outline:none}
 
-  .result{display:flex;flex-direction:column;gap:12px;min-height:100%}
-  .preview-wrap{position:relative;border-radius:12px;overflow:hidden;box-shadow:var(--ring);background:var(--gray-50);flex:1;min-height:280px;display:flex;align-items:center;justify-content:center}
+  .preview-wrap{position:relative;border-radius:12px;overflow:hidden;box-shadow:var(--ring);background:var(--gray-50);min-height:280px;display:flex;align-items:center;justify-content:center}
   .preview-wrap img{width:100%;height:100%;object-fit:cover;display:block}
   .preview-wrap .empty{color:var(--gray-400);font-size:14px}
+  /* 结果单独占满整行，避免右栏变高后左栏留下大片空白 */
+  .demo-results{grid-column:1 / -1;display:none;min-width:0}
+  .demo-results.on{display:block}
   .result-meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--gray-500);margin:0 2px}
-  .dominant{display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;box-shadow:var(--ring);margin:0}
-  .dominant .sw{width:48px;height:48px;border-radius:6px;box-shadow:var(--ring);flex:none}
-  .dominant .code{font-family:var(--mono);font-size:16px;font-weight:500}
-  .dominant .lbl{font-size:12px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em}
-  .palette{display:flex;flex-direction:column;gap:10px}
-  .swatch{display:flex;align-items:center;gap:12px;padding:8px;border-radius:8px;box-shadow:var(--ring);cursor:pointer;transition:.12s}
+  .palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;min-width:0;margin-top:12px}
+  /* 主色作为网格第一张色卡，与其他色卡等高，避免出现空白撑高的卡片 */
+  .dominant{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:8px;box-shadow:0 0 0 1px rgba(10,114,239,.45), var(--ring);min-width:0;cursor:pointer;transition:.12s}
+  .dominant .sw{width:100%;height:40px;border-radius:6px;box-shadow:var(--ring);flex:none}
+  .dominant .lbl{font-size:10px;font-weight:500;color:var(--develop);text-transform:uppercase;letter-spacing:.04em}
+  .dominant .code{font-family:var(--mono);font-size:12px;font-weight:500;overflow-wrap:anywhere;line-height:1.4}
+  .swatch{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:8px;box-shadow:var(--ring);cursor:pointer;transition:.12s;min-width:0}
   .swatch:hover{transform:translateY(-1px)}
-  .swatch .sw{width:36px;height:36px;border-radius:6px;flex:none;box-shadow:var(--ring)}
-  .swatch .info{flex:1;min-width:0}
-  .swatch .code{font-family:var(--mono);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .swatch .sw{width:100%;height:40px;border-radius:6px;flex:none;box-shadow:var(--ring)}
+  .swatch .info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end}
+  .swatch .code{font-family:var(--mono);font-size:12px;font-weight:500;overflow-wrap:anywhere;line-height:1.4}
   .swatch .bar{height:4px;border-radius:9999px;background:var(--gray-100);margin-top:6px;overflow:hidden}
   .swatch .bar > i{display:block;height:100%;border-radius:9999px}
-  .swatch .ratio{font-family:var(--mono);font-size:12px;color:var(--gray-500)}
+  .swatch .ratio{font-family:var(--mono);font-size:11px;color:var(--gray-500);text-align:right;margin-top:5px}
   .state-msg{padding:14px;border-radius:8px;font-size:14px;margin-top:12px;display:none}
   /* Only styled here — visibility is toggled by JS via style.display */
   .state-msg.err{background:#fff1f0;color:#cf1322;box-shadow:var(--ring)}
@@ -180,24 +185,54 @@
   .step p{font-size:14px;color:var(--gray-600)}
 
   /* ---- api ---- */
-  .api-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:stretch}
-  .endpoint{background:var(--white);border-radius:8px;box-shadow:var(--card);padding:20px;margin-bottom:16px}
+  .api-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:stretch}
+  .api-grid>*{min-width:0}
+  .endpoint{--ep:var(--develop);--ep-bg:#ebf5ff;position:relative;min-width:0;overflow:hidden;background:var(--white);border-radius:8px;box-shadow:var(--card);padding:20px 20px 20px 24px;margin-bottom:16px}
+  .endpoint::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ep)}
+  .endpoint.ep-api{--ep:var(--develop);--ep-bg:#ebf5ff}
+  .endpoint.ep-health{--ep:#0a9d54;--ep-bg:#e8f7ee}
+  .endpoint.ep-metrics{--ep:#c0268f;--ep-bg:#fdeaf5}
   .endpoint:last-child{margin-bottom:0}
-  .endpoint .path{font-family:var(--mono);font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;margin-bottom:10px}
-  .method{font-family:var(--mono);font-size:11px;font-weight:500;color:#0068d6;background:#ebf5ff;border-radius:4px;padding:2px 6px}
-  pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--gray-50);border-radius:6px;padding:14px;overflow:auto;color:var(--black);box-shadow:var(--ring)}
+  .ep-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .ep-icon{width:30px;height:30px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--ep);background:var(--ep-bg)}
+  .endpoint .path{font-family:var(--mono);font-size:14px;font-weight:500;display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap}
+  .method{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--ep);background:var(--ep-bg);border-radius:4px;padding:2px 6px}
+  .ep-label{margin-left:auto;font-size:11px;font-weight:500;color:var(--ep);background:var(--ep-bg);border-radius:9999px;padding:2px 10px;white-space:nowrap}
   .endpoint p.desc{font-size:14px;color:var(--gray-600);margin-bottom:10px}
-  .health-box{background:var(--white);border-radius:8px;box-shadow:var(--card);padding:24px;display:flex;flex-direction:column}
+  pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--gray-50);border-radius:6px;padding:14px;max-width:100%;min-width:0;overflow-x:auto;color:var(--black);box-shadow:var(--ring)}
+  pre .cm{color:var(--gray-400)}
+  pre .kw{color:var(--ep);font-weight:500}
+  pre .num{color:#a3450a;font-weight:500}
+  .params{border-radius:6px;overflow:hidden;box-shadow:var(--ring);background:var(--gray-50)}
+  .param{display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px;align-items:baseline;padding:9px 12px}
+  .param+.param{box-shadow:inset 0 1px 0 rgba(0,0,0,.06)}
+  .param code{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--ep);overflow-wrap:anywhere}
+  .param span{font-size:13px;color:var(--gray-600);line-height:1.5;min-width:0;overflow-wrap:anywhere}
+  .param em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--gray-400);white-space:nowrap}
+  /* 右栏拆成两张紧凑卡片，用真实内容填满高度，而不是一张空壳被拉长 */
+  .api-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .health-box{background:var(--white);border-radius:8px;box-shadow:var(--card);padding:24px;flex:none}
   .health-box h3{font-size:20px;font-weight:600;letter-spacing:-1.28px;margin-bottom:6px}
   .health-box p{font-size:14px;color:var(--gray-600);margin-bottom:16px}
-  .health-box .btn{align-self:flex-start}
   .status-line{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:14px;margin-top:14px}
   .status-dot{width:10px;height:10px;border-radius:50%;background:var(--gray-400)}
   .status-dot.up{background:#0a9d54}
-  .health-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto;padding-top:16px}
+  .health-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
   .stat{box-shadow:var(--ring);border-radius:8px;padding:12px}
   .stat .k{font-size:11px;color:var(--gray-500);text-transform:uppercase;letter-spacing:.04em}
   .stat .v{font-family:var(--mono);font-size:18px;font-weight:500;margin-top:4px}
+  .resp-box{--ep:#c0268f;flex:1;min-width:0;background:var(--white);border-radius:8px;box-shadow:var(--card);padding:24px;display:flex;flex-direction:column}
+  .rb-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .rb-head h3{font-size:20px;font-weight:600;letter-spacing:-1.28px}
+  .rb-icon{width:30px;height:30px;border-radius:7px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--ep);background:#fdeaf5}
+  .resp-box>p{font-size:14px;color:var(--gray-600);margin-bottom:14px}
+  .resp-box pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.6;flex:1}
+  pre .jk{color:#0068d6}
+  pre .js{color:#0a7d48}
+  .rb-legend{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+  .rb-legend>div{display:flex;gap:10px;align-items:baseline;font-size:12px}
+  .rb-legend code{font-family:var(--mono);font-size:11px;color:var(--black);background:var(--gray-50);box-shadow:var(--ring);border-radius:4px;padding:2px 6px;white-space:nowrap}
+  .rb-legend span{color:var(--gray-600)}
 
   /* ---- deploy ---- */
   .deploy{text-align:center;padding:100px 0}
@@ -213,15 +248,26 @@
   .foot-inner a{color:var(--gray-600);margin-left:20px}
 
   @media(max-width:900px){
-    .demo-card{grid-template-columns:1fr}
-    .grid-3,.flow{grid-template-columns:1fr}
-    .api-grid{grid-template-columns:1fr}
+    .demo-card{grid-template-columns:minmax(0,1fr)}
+    .preview-wrap{min-height:260px}
+    .grid-3,.flow{grid-template-columns:minmax(0,1fr)}
+    .api-grid{grid-template-columns:minmax(0,1fr)}
+    .resp-box{flex:none}
   }
   @media(max-width:600px){
     .hero h1{font-size:48px;letter-spacing:-2.4px}
     .nav-links{display:none}
     .menu-btn{display:block}
     .nav-links.open{display:flex;position:absolute;top:64px;left:0;right:0;background:#fff;flex-direction:column;padding:16px 24px;gap:16px;box-shadow:var(--ring)}
+    .demo-card{padding:16px;gap:16px}
+    .palette{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+    .endpoint{padding:16px 16px 16px 19px}
+    .health-box,.resp-box{padding:20px}
+    .rb-legend code{white-space:normal;overflow-wrap:anywhere}
+    .ep-head{gap:8px}
+    pre{font-size:12px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .param{grid-template-columns:1fr;gap:2px}
+    .param em{margin-left:6px}
   }
 </style>
 </head>
@@ -323,19 +369,19 @@
         <div class="state-msg err" id="error"></div>
       </div>
 
-      <div class="result">
-        <div class="preview-wrap" id="preview">
-          <span class="empty">结果预览将显示在这里</span>
-        </div>
-        <div class="result-meta" id="meta" style="display:none"></div>
-        <div class="dominant" id="dominant" style="display:none">
-          <div class="sw" id="domSw"></div>
-          <div>
+      <div class="preview-wrap" id="preview">
+        <span class="empty">结果预览将显示在这里</span>
+      </div>
+
+      <div class="demo-results" id="demoResults">
+        <div class="result-meta" id="meta"></div>
+        <div class="palette" id="palette">
+          <div class="dominant" id="dominant" title="点击复制主色">
+            <div class="sw" id="domSw"></div>
             <div class="lbl">主色 Dominant</div>
             <div class="code" id="domCode">—</div>
           </div>
         </div>
-        <div class="palette" id="palette"></div>
       </div>
     </div>
   </div>
@@ -434,43 +480,94 @@
     </div>
     <div class="api-grid">
       <div>
-        <div class="endpoint">
-          <div class="path"><span class="method">GET</span> /api</div>
+        <div class="endpoint ep-api">
+          <div class="ep-head">
+            <span class="ep-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+            <div class="path"><span class="method">GET</span> /api</div>
+            <span class="ep-label">核心接口</span>
+          </div>
           <p class="desc">从图片 URL 提取主色与调色板。</p>
-          <pre>?img=https://example.com/a.jpg   # 必填，需 URL 编码
-&format=hex|rgb|hsl|cmyk          # 默认 hex
-&colors=1-10                       # 默认 1
-&algorithm=mediancut|kmeans        # 默认 mediancut
-&maxWidth=32-4096                  # 默认 400
-&skipBackground=true|false         # 默认 false</pre>
+          <div class="params">
+            <div class="param"><code>img</code><span>图片 URL，<b>必填</b>，需 URL 编码</span></div>
+            <div class="param"><code>format</code><span>hex / rgb / hsl / cmyk <em>默认 hex</em></span></div>
+            <div class="param"><code>colors</code><span>返回颜色数 1–10 <em>默认 1</em></span></div>
+            <div class="param"><code>algorithm</code><span>mediancut / kmeans <em>默认 mediancut</em></span></div>
+            <div class="param"><code>maxWidth</code><span>下采样宽度 32–4096 <em>默认 400</em></span></div>
+            <div class="param"><code>skipBackground</code><span>true / false <em>默认 false</em></span></div>
+          </div>
         </div>
-        <div class="endpoint">
-          <div class="path"><span class="method">GET</span> /health</div>
+        <div class="endpoint ep-health">
+          <div class="ep-head">
+            <span class="ep-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2 6 4-14 2 8h6"/></svg></span>
+            <div class="path"><span class="method">GET</span> /health</div>
+            <span class="ep-label">健康检查</span>
+          </div>
           <p class="desc">健康检查与运行统计（请求数、缓存命中率、错误数）。</p>
-          <pre>GET /health → { "status":"up", "requests":N,
-  "cacheHitRate":0.42, "recentErrors":0 }</pre>
+          <pre><span class="kw">GET</span> /health <span class="cm">→ 200 OK</span>
+{ "status":"up", "requests":<span class="num">N</span>,
+  "cacheHitRate":<span class="num">0.42</span>, "recentErrors":<span class="num">0</span> }</pre>
         </div>
-        <div class="endpoint">
-          <div class="path"><span class="method">GET</span> /metrics</div>
+        <div class="endpoint ep-metrics">
+          <div class="ep-head">
+            <span class="ep-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M6 21V11M12 21V4M18 21v-7"/></svg></span>
+            <div class="path"><span class="method">GET</span> /metrics</div>
+            <span class="ep-label">监控指标</span>
+          </div>
           <p class="desc">Prometheus 文本格式指标，直接对接监控。</p>
-          <pre>GET /metrics
-# TYPE img2color_requests_total counter
-img2color_requests_total 128</pre>
+          <pre><span class="kw">GET</span> /metrics
+<span class="cm"># TYPE img2color_requests_total counter</span>
+img2color_requests_total <span class="num">128</span></pre>
         </div>
       </div>
 
-      <div class="health-box">
-        <h3>服务状态</h3>
-        <p>点击检查当前部署实例的运行情况。</p>
-        <button class="btn btn-dark" id="checkHealth">检查 /health</button>
-        <div class="status-line"><span class="status-dot" id="healthDot"></span><span id="healthText">未检查</span></div>
-        <div class="health-stats" id="healthStats" style="display:none">
-          <div class="stat"><div class="k">Requests</div><div class="v" id="stReq">—</div></div>
-          <div class="stat"><div class="k">Cache Hit</div><div class="v" id="stHit">—</div></div>
-          <div class="stat"><div class="k">Errors</div><div class="v" id="stErr">—</div></div>
-          <div class="stat"><div class="k">Rate / min</div><div class="v" id="stRate">—</div></div>
+      <div class="api-side">
+        <div class="health-box">
+          <h3>服务状态</h3>
+          <p>点击检查当前部署实例的运行情况。</p>
+          <button class="btn btn-dark" id="checkHealth">检查 /health</button>
+          <div class="status-line"><span class="status-dot" id="healthDot"></span><span id="healthText">未检查</span></div>
+          <div class="health-stats" id="healthStats" style="display:none">
+            <div class="stat"><div class="k">Requests</div><div class="v" id="stReq">—</div></div>
+            <div class="stat"><div class="k">Cache Hit</div><div class="v" id="stHit">—</div></div>
+            <div class="stat"><div class="k">Errors</div><div class="v" id="stErr">—</div></div>
+            <div class="stat"><div class="k">Rate / min</div><div class="v" id="stRate">—</div></div>
+          </div>
+          <div class="state-msg err" id="healthErr"></div>
         </div>
-        <div class="state-msg err" id="healthErr"></div>
+
+        <div class="resp-box">
+          <div class="rb-head">
+            <span class="rb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/></svg></span>
+            <h3>统一响应结构</h3>
+          </div>
+          <p>所有端点返回同一信封，<code class="mono">code: 0</code> 表示成功。</p>
+          <pre><span class="cm">// GET /api 成功响应</span>
+{
+  <span class="jk">"code"</span>: <span class="num">0</span>,
+  <span class="jk">"message"</span>: <span class="js">"success"</span>,
+  <span class="jk">"data"</span>: {
+    <span class="jk">"format"</span>: <span class="js">"hex"</span>,
+    <span class="jk">"dominant"</span>: <span class="js">"#4a5d3a"</span>,
+    <span class="jk">"palette"</span>: [
+      { <span class="jk">"color"</span>: <span class="js">"#4a5d3a"</span>,
+        <span class="jk">"ratio"</span>: <span class="num">0.1964</span> },
+      { <span class="jk">"color"</span>: <span class="js">"#3f5133"</span>,
+        <span class="jk">"ratio"</span>: <span class="num">0.1651</span> }
+    ],
+    <span class="jk">"width"</span>: <span class="num">1200</span>,
+    <span class="jk">"height"</span>: <span class="num">800</span>
+  }
+}
+
+<span class="cm">// 失败时 data 省略，message 说明原因</span>
+{ <span class="jk">"code"</span>: <span class="num">400</span>,
+  <span class="jk">"message"</span>: <span class="js">"img is required"</span> }</pre>
+          <div class="rb-legend">
+            <div><code>data.dominant</code><span>主色，按所选格式返回</span></div>
+            <div><code>data.palette[]</code><span>颜色与占比，按占比降序</span></div>
+            <div><code>data.width / height</code><span>降采样后的图片尺寸</span></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -577,6 +674,7 @@ img2color_requests_total 128</pre>
   var previewEl = document.getElementById("preview");
   var metaEl = document.getElementById("meta");
   var dominantEl = document.getElementById("dominant");
+  var demoResults = document.getElementById("demoResults");
 
   function showError(msg){ errorEl.textContent = msg; errorEl.style.display="block"; }
   function clearError(){ errorEl.style.display="none"; errorEl.textContent=""; }
@@ -593,7 +691,10 @@ img2color_requests_total 128</pre>
       skipBackground: String(state.skipBackground)
     });
     loading.style.display = "flex";
-    paletteEl.innerHTML = ""; dominantEl.style.display="none"; metaEl.style.display="none";
+    // 主色卡片常驻网格首位，清空时须重新挂回，否则后续渲染取不到 domSw / domCode
+    paletteEl.innerHTML = "";
+    paletteEl.appendChild(dominantEl);
+    demoResults.classList.remove("on");
 
     fetch("/api?" + q.toString())
       .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
@@ -612,7 +713,7 @@ img2color_requests_total 128</pre>
   function renderResult(data, url){
     if(!data){ showError("响应为空"); return; }
     previewEl.innerHTML = '<img src="'+url+'" alt="预览" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" />';
-    metaEl.style.display = "flex";
+    demoResults.classList.add("on");
     metaEl.innerHTML = "<span>"+data.width+" × "+data.height+"</span><span>format: "+data.format+"</span>";
 
     // dominant
@@ -620,10 +721,10 @@ img2color_requests_total 128</pre>
     document.getElementById("domSw").style.background = dom.css;
     var domCode = document.getElementById("domCode");
     domCode.textContent = dom.label;
-    dominantEl.style.display = "flex";
 
-    // palette
+    // palette（主色卡片固定在网格首位）
     paletteEl.innerHTML = "";
+    paletteEl.appendChild(dominantEl);
     (data.palette||[]).forEach(function(item){
       var r = renderColor(data.format, item.color);
       var pct = (item.ratio*100).toFixed(2);
@@ -633,8 +734,9 @@ img2color_requests_total 128</pre>
       row.innerHTML =
         '<div class="sw" style="background:'+r.css+'"></div>'+
         '<div class="info">'+
-          '<div class="code"><span>'+r.label+'</span><span class="ratio">'+pct+'%</span></div>'+
+          '<div class="code">'+r.label+'</div>'+
           '<div class="bar"><i style="width:'+pct+'%;background:'+r.css+'"></i></div>'+
+          '<div class="ratio">'+pct+'%</div>'+
         '</div>';
       row.addEventListener("click", function(){
         navigator.clipboard && navigator.clipboard.writeText(r.label);
@@ -644,6 +746,12 @@ img2color_requests_total 128</pre>
       paletteEl.appendChild(row);
     });
   }
+
+  dominantEl.addEventListener("click", function(){
+    navigator.clipboard && navigator.clipboard.writeText(document.getElementById("domCode").textContent);
+    dominantEl.style.boxShadow = "0 0 0 1px #0a72ef";
+    setTimeout(function(){ dominantEl.style.boxShadow=""; }, 400);
+  });
 
   // ---------- health check ----------
   var healthBtn = document.getElementById("checkHealth");
